@@ -7,12 +7,34 @@ local JwtClaimsHeadersHandler = BasePlugin:extend()
 
 local function retrieve_token(request, conf)
   local uri_parameters = request.get_uri_args()
-
   for _, v in ipairs(conf.uri_param_names) do
     if uri_parameters[v] then
       return uri_parameters[v]
     end
   end
+
+  for _, v in ipairs(conf.cookie_names) do
+    local jwt_cookie = ngx.unescape_uri(ngx.var["cookie_" .. v])
+    if jwt_cookie and jwt_cookie ~= "" then
+      return jwt_cookie, nil
+    end
+  end
+
+  authorization_header = request.get_headers()["authorization"]
+  if authorization_header then
+    local iterator, iter_err = ngx_re_gmatch(authorization_header, "\\s*[Bb]earer\\s+(.+)")
+    if not iterator then
+      return nil, iter_err
+    end
+    local m, err = iterator()
+    if err then
+      return nil, err
+    end
+    if m and #m > 0 then
+      return m[1]
+    end
+  end
+end
 
   local authorization_header = request.get_headers()["authorization"]
   if authorization_header then
